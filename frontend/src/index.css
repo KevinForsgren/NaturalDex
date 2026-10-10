@@ -1,0 +1,59 @@
+@import "tailwindcss";
+
+@theme {
+  --color-nat-bg: #f5f0e4;
+  --color-nat-forest: #244a35;
+  --color-nat-forest-hover: #1c3b2a;
+  --color-nat-sage: #dce5d4;
+  --color-nat-paper: #e7ddc9;
+  --color-nat-golden: #d4a65a;
+  --color-nat-clay: #c97960;
+  --color-nat-text: #26352a;
+  --color-nat-muted: #667265;
+  --color-nat-border: #d7dccf;
+
+  --font-serif: "Fraunces", Georgia, serif;
+  --font-sans: "DM Sans", system-ui, sans-serif;
+
+  --shadow-paper: 0 2px 10px rgba(38, 53, 42, 0.05), 0 1px 3px rgba(38, 53, 42, 0.08);
+  --shadow-paper-lg: 0 8px 30px rgba(38, 53, 42, 0.08), 0 2px 8px rgba(38, 53, 42, 0.04);
+  --shadow-inner-paper: inset 0 2px 4px 0 rgba(38, 53, 42, 0.06);
+}
+
+@keyframes reticle-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.8; }
+  50% { transform: scale(1.03); opacity: 1; }
+}
+@keyframes scan-line {
+  0% { top: 10%; opacity: 0; }
+  15% { opacity: 1; }
+  85% { opacity: 1; }
+  100% { top: 90%; opacity: 0; }
+}
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-reticle { animation: reticle-pulse 2.5s ease-in-out infinite; }
+.animate-scan { animation: scan-line 2s ease-in-out infinite; }
+.animate-fade-in { animation: fade-in 0.3s ease-out both; }
+
+body {
+  background-color: #f5f0e4;
+  color: #26352a;
+  font-family: var(--font-sans);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.paper-texture {
+  background-color: #f5f0e4;
+  background-image: radial-gradient(#244a35 0.5px, transparent 0.5px),
+    radial-gradient(#d4a65a 0.5px, #f5f0e4 0.5px);
+  background-size: 18px 18px;
+  background-position: 0 0, 9px 9px;
+}
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #f5f0e4; }
+::-webkit-scrollbar-thumb { background: #d7dccf; border-radius: 9999px; }

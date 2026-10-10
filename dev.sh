@@ -26,6 +26,15 @@ if [ ! -x "$ROOT_DIR/.venv/bin/python" ]; then
   (cd "$ROOT_DIR" && uv venv .venv) || exit 1
   echo "[dev] Installing backend dependencies…"
   (cd "$ROOT_DIR" && uv pip install --python "$ROOT_DIR/.venv/bin/python" -r backend/requirements.txt)
+elif ! "$ROOT_DIR/.venv/bin/python" -c "import fastapi, sqlalchemy, uvicorn" >/dev/null 2>&1; then
+  echo "[dev] Backend dependencies missing — installing…"
+  (cd "$ROOT_DIR" && uv pip install --python "$ROOT_DIR/.venv/bin/python" -r backend/requirements.txt)
+fi
+
+# Ensure the frontend dependencies are installed (Vite + React).
+if [ -d "$ROOT_DIR/frontend" ] && [ ! -d "$ROOT_DIR/frontend/node_modules" ]; then
+  echo "[dev] Installing frontend dependencies…"
+  (cd "$ROOT_DIR/frontend" && npm install)
 fi
 
 BACKEND_PGID=""
