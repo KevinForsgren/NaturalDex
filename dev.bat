@@ -1,6 +1,6 @@
 @echo off
 REM ============================================================
-REM  StudyLoop development entry point (Windows CMD)
+REM  NatureDex development entry point (Windows CMD)
 REM  Creates the Python venv if missing, then starts backend +
 REM  frontend, each in its own window.
 REM ============================================================
@@ -25,10 +25,10 @@ if not exist "%PY%" (
 )
 
 echo [dev] Starting backend on http://127.0.0.1:8000 ...
-start "StudyLoop backend" cmd /k ""cd /d "%ROOT%backend" && "%PY%" -m uvicorn src.main:app --reload --host 127.0.0.1 --port 8000""
+start "NatureDex backend" cmd /k ""cd /d "%ROOT%backend" && "%PY%" -m uvicorn src.main:app --reload --host 127.0.0.1 --port 8000""
 
 echo [dev] Starting frontend on http://127.0.0.1:3000 ...
-start "StudyLoop frontend" cmd /k ""cd /d "%ROOT%frontend" && npm run dev""
+start "NatureDex frontend" cmd /k ""cd /d "%ROOT%frontend" && npm run dev""
 
 echo [dev] Both started.  Backend: http://127.0.0.1:8000   Frontend: http://127.0.0.1:3000
 echo [dev] The two service windows stay open; close them to stop each service.

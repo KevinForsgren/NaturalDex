@@ -4,7 +4,7 @@ Authentication API endpoints.
 """
 
 import sys
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel
 
@@ -57,14 +57,17 @@ async def register(request: RegisterRequest):
     
     # Hash password and create user
     password_hash = security.hash_password(request.password)
-    
+
+    now = datetime.now(timezone.utc)
     auth_service.execute(
-        "INSERT INTO users (username, email, password_hash) VALUES (:username, :email, :password_hash)",
+        "INSERT INTO users (username, email, password_hash, timezone, created_at, updated_at) "
+        "VALUES (:username, :email, :password_hash, 'UTC', :now, :now)",
         {
             "username": request.username,
             "email": request.email,
-            "password_hash": password_hash
-        }
+            "password_hash": password_hash,
+            "now": now,
+        },
     )
     auth_service.commit()
     

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# StudyLoop development command.
+# NatureDex development command.
 #
 # Starts the FastAPI backend and the Vite frontend together, keeps their logs
 # visible in one terminal (each line prefixed), forwards termination signals,
@@ -48,7 +48,7 @@ quit() {
 
 trap quit INT TERM EXIT
 
-echo "[dev] StudyLoop development server"
+echo "[dev] NatureDex development server"
 echo "[dev] backend  → http://127.0.0.1:$BACKEND_PORT  (Ctrl+C to stop both)"
 echo "[dev] frontend → http://127.0.0.1:$FRONTEND_PORT"
 

@@ -1,0 +1,19 @@
+# Backend dependencies for NaturalDex (mirrors pyproject.toml).
+# Installed by dev.sh / dev.ps1 / dev.bat into the project virtualenv.
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+sqlalchemy>=2.0.0
+python-multipart>=0.0.8
+python-jose[cryptography]>=3.3.0
+argon2-cffi>=21.3.0
+python-dotenv>=1.0.0
+pydantic>=2.0.0
+typing-extensions>=4.0.0
+pydantic-settings>=2.8.1
+
+# Test / dev
+pytest>=7.0.0
+pytest-asyncio>=0.21.0
+httpx>=0.24.0
+black>=23.0.0
+isort>=5.0.0

@@ -15,9 +15,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from config.settings import get_settings
 from db.models import Base
+from db.migrations import run_migrations
 
 # Backend directory (backend/src/db -> ../.. = backend). Relative sqlite paths
-# are anchored here so the database always lives at <backend>/Database/studyloop.db
+# are anchored here so the database always lives at <backend>/Database/naturedex.db
 # regardless of the current working directory.
 BACKEND_DIR = Path(__file__).resolve().parents[2]
 
@@ -41,9 +42,13 @@ class Database:
             connect_args={"check_same_thread": False} if "sqlite" in db_url else {}
         )
         self.SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=self.engine)
-        
-        # Create tables if they don't exist
+
+        # Create tables if they don't exist (fresh databases get the full schema).
         Base.metadata.create_all(bind=self.engine)
+
+        # Apply versioned migrations for changes create_all cannot make on an
+        # existing database (column additions, dropped tables).
+        run_migrations(self.engine)
     
     def get_session(self) -> Session:
         """Get a new database session."""
@@ -60,9 +65,28 @@ class Database:
             raise
         finally:
             session.close()
-    
+
     def close(self):
         """Close database connection."""
         self.engine.dispose()
+
+
 # Global database instance
 db = Database()
+
+
+def get_db():
+    """FastAPI dependency yielding a request-scoped session.
+
+    Commits on success, rolls back on error, and always closes the session so
+    state is not reused across requests.
+    """
+    session = db.get_session()
+    try:
+        yield session
+        session.commit()
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.close()

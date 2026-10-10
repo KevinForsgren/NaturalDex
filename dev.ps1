@@ -1,5 +1,5 @@
 # ============================================================
-#  StudyLoop development entry point (Windows PowerShell)
+#  NatureDex development entry point (Windows PowerShell)
 #  Creates the Python venv if missing, then starts backend +
 #  frontend, each in its own window.
 # ============================================================
