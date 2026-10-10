@@ -30,12 +30,37 @@ def _resolve_db_url(url: str) -> str:
     return url
 
 
+def _ensure_sqlite_dir(db_url: str) -> None:
+    """Create the parent directory of a file-backed SQLite database.
+
+    SQLAlchemy's sqlite driver creates the database *file* but not its parent
+    directory, so a missing ``Database/`` folder fails at startup with
+    ``unable to open database file``. In-memory databases need no directory.
+    """
+    if not db_url.startswith("sqlite:///") or ":memory:" in db_url:
+        return
+    raw = db_url[len("sqlite:///"):]
+    if not raw:
+        return
+    parent = Path(raw).expanduser().parent
+    if str(parent) in (".", ""):
+        return
+    try:
+        parent.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        raise RuntimeError(
+            f"Cannot create the database directory {parent}: {exc}. "
+            "Check the DATABASE_URL path and that the directory is writable."
+        ) from exc
+
+
 class Database:
     """Database connection and management."""
     
     def __init__(self):
         settings = get_settings()
         db_url = _resolve_db_url(settings.DATABASE_URL)
+        _ensure_sqlite_dir(db_url)
         self.engine = create_engine(
             db_url,
             echo=settings.DEBUG,

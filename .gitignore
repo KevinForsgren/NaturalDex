@@ -20,6 +20,6 @@ frontend/build/
 frontend/.vite/
 
 #Database
-backend/Database/studyloop.db
+backend/Database
 
 agents
