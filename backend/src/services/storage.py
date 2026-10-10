@@ -63,6 +63,26 @@ def read_photo_bytes(storage_key: str) -> bytes:
     return path.read_bytes()
 
 
+def path_for(storage_key: str):
+    """Return the on-disk Path for a storage_key, or None when missing/invalid.
+
+    Enforces that the key resolves inside the private upload root; the directory
+    itself is never exposed statically.
+    """
+    if not storage_key:
+        return None
+    root = upload_root()
+    path = root / storage_key
+    if not path.resolve().is_relative_to(root.resolve()):
+        return None
+    return path
+
+
+def file_exists(storage_key: str) -> bool:
+    path = path_for(storage_key)
+    return bool(path and path.is_file())
+
+
 def remove_photo(storage_key: str) -> None:
     """Delete a stored photo by storage_key (best effort)."""
     root = upload_root()

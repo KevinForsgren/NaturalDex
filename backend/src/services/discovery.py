@@ -308,6 +308,12 @@ def submit_discovery(session, user_id: int, discovery_id: int, provider) -> dict
         applied = cards.apply_accepted_discovery(session, service, d, species)
         card = applied["card"]
 
+        # Link the representative photo to the card (bytes stay on disk).
+        # Photo order 1 is the wide/first view; fall back to any photo present.
+        primary = next((p for p in photos if p["photo_order"] == 1), photos[0] if photos else None)
+        if primary:
+            cards.set_card_photo(service, card["id"], primary["storage_key"], primary["content_type"], now)
+
         # XP is decided here by backend rules, never from the client/model.
         event = "first_discovery" if applied["is_first"] else "repeat_observation"
         rewards.award_xp(service, user_id, event, discovery_id=d["id"])

@@ -266,6 +266,11 @@ class UserCollectionCard(Base):
     count = Column(Integer, nullable=False, default=1)
     first_discovered_at = Column(DateTime, nullable=True)
     last_discovered_at = Column(DateTime, nullable=True)
+    # Representative photo for the card, set when a discovery is accepted.
+    # ``card_photo_key`` is a private storage key (bytes stay on disk);
+    # ``card_photo_content_type`` is the image's declared media type for serving.
+    card_photo_key = Column(String, nullable=True)
+    card_photo_content_type = Column(String, nullable=True)
     created_at = Column(DateTime, default=_utcnow)
     updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow)
 

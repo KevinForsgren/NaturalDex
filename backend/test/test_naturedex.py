@@ -11,12 +11,13 @@ unless a test injects its own provider.
 from datetime import date
 
 import pytest
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
 import conftest
 from db.session import db
 from services.vision import VisionProvider, VisionUnavailableError
+from services import storage
 
 COOKIE = "naturaldex_token"
 
@@ -360,3 +361,70 @@ def test_timezone_can_be_updated(client):
         "/api/profile/timezone", cookies=_cookies(token), json={"timezone": "Not/AZone"}
     )
     assert bad.status_code == 422
+
+
+# --------------------------------------------------------------------------
+# Card image endpoint (Option B)
+# --------------------------------------------------------------------------
+def _accepted_card(client, token):
+    """Pair, discover, and accept a card; returns the submit response body."""
+    conftest.pair_home_base(client, token)
+    _, did = conftest.make_discovery(client, token=token)
+    result = client.post(f"/api/discoveries/{did}/submit", cookies=_cookies(token)).json()
+    assert result["accepted"] is True
+    return result
+
+
+def test_card_image_success(client):
+    token = _login(client, "scout")
+    result = _accepted_card(client, token)
+    pid = result["cardPublicId"]
+
+    # The card detail should advertise the authenticated image route.
+    detail = client.get(f"/api/collection/card-{pid}", cookies=_cookies(token)).json()
+    assert detail["card"]["image_url"] == f"/api/collection/card-{pid}/image"
+
+    resp = client.get(f"/api/collection/card-{pid}/image", cookies=_cookies(token))
+    assert resp.status_code == 200
+    assert resp.headers.get("content-type", "").startswith("image/jpeg")
+    # The card uses photo order 1 (the first uploaded file).
+    assert resp.content == b"fakejpegbytes" * 8
+
+
+def test_card_image_unauthorized_user(client):
+    token_a = _login(client, "alice")
+    token_b = _login(client, "bob")
+    result = _accepted_card(client, token_a)
+    pid = result["cardPublicId"]
+    denied = client.get(f"/api/collection/card-{pid}/image", cookies=_cookies(token_b))
+    assert denied.status_code == 404
+
+
+def test_card_image_missing_file(client):
+    token = _login(client, "scout")
+    result = _accepted_card(client, token)
+    pid = result["cardPublicId"]
+    key = None
+    with db.engine.begin() as conn:
+        key = conn.execute(
+            text("SELECT card_photo_key FROM user_collection_cards WHERE public_id = :p"),
+            {"p": pid},
+        ).scalar()
+    storage.remove_photo(key)
+    resp = client.get(f"/api/collection/card-{pid}/image", cookies=_cookies(token))
+    assert resp.status_code == 404
+    assert resp.json()["detail"]["code"] == "IMAGE_NOT_FOUND"
+
+
+def test_card_image_missing_reference(client):
+    token = _login(client, "scout")
+    result = _accepted_card(client, token)
+    pid = result["cardPublicId"]
+    with db.engine.begin() as conn:
+        conn.execute(
+            text("UPDATE user_collection_cards SET card_photo_key = NULL WHERE public_id = :p"),
+            {"p": pid},
+        )
+    resp = client.get(f"/api/collection/card-{pid}/image", cookies=_cookies(token))
+    assert resp.status_code == 404
+    assert resp.json()["detail"]["code"] == "IMAGE_NOT_FOUND"

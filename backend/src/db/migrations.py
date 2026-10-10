@@ -54,9 +54,19 @@ def _migration_0002_drop_studyloop_tables(conn):
             conn.execute(text(f"DROP TABLE IF EXISTS {table}"))
 
 
+def _migration_0003_card_photo(conn):
+    """Link each collection card to the representative photo for card display."""
+    cols = _columns(conn, "user_collection_cards")
+    if "card_photo_key" not in cols:
+        conn.execute(text("ALTER TABLE user_collection_cards ADD COLUMN card_photo_key VARCHAR"))
+    if "card_photo_content_type" not in cols:
+        conn.execute(text("ALTER TABLE user_collection_cards ADD COLUMN card_photo_content_type VARCHAR"))
+
+
 MIGRATIONS = [
     ("0001_users_timestamps_and_timezone", _migration_0001_users_timestamps),
     ("0002_drop_studyloop_tables", _migration_0002_drop_studyloop_tables),
+    ("0003_card_photo", _migration_0003_card_photo),
 ]
 
 

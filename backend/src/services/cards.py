@@ -182,6 +182,8 @@ def card_detail(service, card) -> dict:
         "count": d["count"],
         "first_discovered_at": str(d["first_discovered_at"]) if d["first_discovered_at"] else None,
         "last_discovered_at": str(d["last_discovered_at"]) if d["last_discovered_at"] else None,
+        # Authenticated image route; None when the card has no representative photo.
+        "image_url": card_image_url(d) if d.get("card_photo_key") else None,
         "species": {
             "id": species["id"],
             "canonical_key": species["canonical_key"],
@@ -198,3 +200,19 @@ def card_detail(service, card) -> dict:
 
 def card_url(public_id: str) -> str:
     return f"/collection/card-{public_id}"
+
+
+def card_image_url(card_or_dict) -> str:
+    """The authenticated image route for a card that has a representative photo."""
+    d = dict(card_or_dict._asdict()) if hasattr(card_or_dict, "_asdict") else dict(card_or_dict)
+    return f"/api/collection/card-{d['public_id']}/image" if d.get("card_photo_key") else None
+
+
+def set_card_photo(service, card_id: int, storage_key: str, content_type: str, now=None) -> None:
+    """Link the card to the representative photo (bytes remain on disk)."""
+    now = now or _utcnow()
+    service.execute(
+        "UPDATE user_collection_cards SET card_photo_key = :key, "
+        "card_photo_content_type = :ct, updated_at = :now WHERE id = :id",
+        {"key": storage_key, "ct": content_type, "now": now, "id": card_id},
+    )
