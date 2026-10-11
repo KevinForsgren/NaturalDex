@@ -31,11 +31,6 @@ function Shell() {
   const toast = useToast()
   const [hbStatus, setHbStatus] = useState(null)
 
-  if (status === "loading") return <LoadingScreen />
-  if (status !== "authed") return <Navigate to="/login" replace state={{ from: location }} />
-
-  const displayName = user && (user.username || user.name) ? user.username || user.name : "Explorer"
-
   // Fetch home base status on mount and poll periodically
   useEffect(() => {
     let alive = true
@@ -61,6 +56,10 @@ function Shell() {
     }
   }, [])
 
+  if (status === "loading") return <LoadingScreen />
+  if (status !== "authed") return <Navigate to="/login" replace state={{ from: location }} />
+
+  const displayName = user && (user.username || user.name) ? user.username || user.name : "Explorer"
   const isPaired = hbStatus?.paired && hbStatus?.model_ready
   const isConnected = hbStatus?.paired
 
