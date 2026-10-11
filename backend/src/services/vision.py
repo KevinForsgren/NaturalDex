@@ -217,6 +217,12 @@ class OllamaVisionProvider(VisionProvider):
         try:
             r = httpx.get(f"{self._base_url()}/api/tags", timeout=10, trust_env=False)
             r.raise_for_status()
+            # Check if the configured model is installed
+            models = r.json().get("models", [])
+            model_names = [m.get("name", "").split(":")[0] for m in models]
+            configured_model = self._model().split(":")[0]
+            if configured_model not in model_names:
+                return False
             return True
         except Exception:
             return False
@@ -251,6 +257,22 @@ class OllamaVisionProvider(VisionProvider):
                 trust_env=False,
             )
             response.raise_for_status()
+        except httpx.ConnectError as exc:
+            raise VisionUnavailableError(
+                "Cannot connect to Ollama. Ensure Ollama is running on the laptop (ollama serve)."
+            ) from exc
+        except httpx.TimeoutException as exc:
+            raise VisionUnavailableError(
+                "Ollama request timed out. The model may be loading or the request is too large."
+            ) from exc
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code == 404:
+                raise VisionUnavailableError(
+                    f"Model '{self._model()}' not found. Install it with: ollama pull {self._model()}"
+                ) from exc
+            raise VisionUnavailableError(
+                f"Ollama error ({exc.response.status_code}): {exc.response.text}"
+            ) from exc
         except (httpx.HTTPError, httpx.TimeoutException) as exc:
             raise VisionUnavailableError(
                 "AI home base unavailable. Please try again."

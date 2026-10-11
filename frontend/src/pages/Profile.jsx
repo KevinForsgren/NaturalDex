@@ -31,13 +31,11 @@ export default function Profile() {
 
   const openPair = useCallback(async () => {
     setPairOpen(true)
-    setPairing({ state: "loading", token: null, challenge: null, laptopUrl: null, expiresAt: null, error: null, modelReady: false })
+    setPairing({ state: "loading", token: null, challenge: null, laptopUrl: null, expiresAt: null, error: null, modelReady: false, showManualEntry: false })
     try {
       const ch = await data.pairingChallenge()
-      // Build laptop URL - use current origin but with /home-base/pair path
-      // In production, user would use ngrok URL or LAN IP
-      const baseUrl = window.location.origin.replace(':3000', ':8000')
-      const laptopUrl = `${baseUrl}/home-base/pair?challenge=${ch.token}`
+      // Build laptop URL pointing to frontend pairing page
+      const laptopUrl = `${window.location.origin}/pair/${ch.token}`
       setPairing({ 
         state: "challenge_ready", 
         token: ch.token, 
@@ -45,11 +43,12 @@ export default function Profile() {
         laptopUrl,
         expiresAt: ch.expires_at, 
         error: null, 
-        modelReady: false 
+        modelReady: false,
+        showManualEntry: false
       })
       data.homeBaseStatus().then(setHb).catch(() => {})
     } catch (err) {
-      setPairing({ state: "error", token: null, challenge: null, laptopUrl: null, expiresAt: null, error: err && err.message, modelReady: false })
+      setPairing({ state: "error", token: null, challenge: null, laptopUrl: null, expiresAt: null, error: err && err.message, modelReady: false, showManualEntry: false })
     }
   }, [])
 
@@ -74,6 +73,8 @@ export default function Profile() {
           }))
           data.homeBaseStatus().then(setHb).catch(() => {})
           toast({ type: "success", title: "Home Base Paired", message: res.model_ready ? "Local AI model is ready." : "Paired, but model not responding. Check Ollama." })
+          // Notify other components of pairing completion
+          window.dispatchEvent(new CustomEvent('homebase-paired'))
         } else {
           setPairing(prev => ({ ...prev, state: "error", error: res.message || "Pairing verification failed." }))
         }
@@ -100,6 +101,7 @@ export default function Profile() {
         // Refresh home base status
         data.homeBaseStatus().then(setHb).catch(() => {})
         toast({ type: "success", title: "Home Base Paired", message: res.model_ready ? "Local AI model is ready." : "Paired, but model not responding. Check Ollama." })
+        window.dispatchEvent(new CustomEvent('homebase-paired'))
       } else {
         setPairing(prev => ({ ...prev, state: "error", error: res.message || "Pairing verification failed." }))
       }
@@ -107,6 +109,30 @@ export default function Profile() {
       setPairing(prev => ({ ...prev, state: "error", error: err && err.message || "Verification failed." }))
     }
   }, [pairing.challenge])
+
+  const verifyManualEntry = useCallback(async (manualChallenge) => {
+    if (!manualChallenge) return
+    setPairing(prev => ({ ...prev, state: "verifying", challenge: manualChallenge }))
+    try {
+      const res = await data.verifyPairing(manualChallenge)
+      if (res.status === "paired") {
+        setPairing(prev => ({ 
+          ...prev, 
+          state: "paired", 
+          modelReady: res.model_ready,
+          error: null,
+          challenge: manualChallenge
+        }))
+        data.homeBaseStatus().then(setHb).catch(() => {})
+        toast({ type: "success", title: "Home Base Paired", message: res.model_ready ? "Local AI model is ready." : "Paired, but model not responding. Check Ollama." })
+        window.dispatchEvent(new CustomEvent('homebase-paired'))
+      } else {
+        setPairing(prev => ({ ...prev, state: "error", error: res.message || "Pairing verification failed." }))
+      }
+    } catch (err) {
+      setPairing(prev => ({ ...prev, state: "error", error: err && err.message || "Verification failed." }))
+    }
+  }, [])
 
   const copyLaptopUrl = useCallback(() => {
     if (pairing.laptopUrl) {
@@ -239,12 +265,39 @@ export default function Profile() {
                     <QrCode className="w-4 h-4" /> Scan QR on Laptop
                   </button>
                   <button
-                    onClick={verifyPairing}
+                    onClick={() => setPairing(prev => ({ ...prev, showManualEntry: true }))}
                     className="w-full px-4 py-2 bg-nat-sage border border-nat-border text-nat-forest rounded-xl text-xs font-medium"
                   >
                     Or enter challenge manually
                   </button>
                 </div>
+
+                {/* Manual entry form */}
+                {pairing.showManualEntry && (
+                  <div className="space-y-2 w-full max-w-xs mx-auto mt-2 pt-2 border-t border-nat-border">
+                    <p className="text-[11px] text-nat-muted">Enter the challenge code from your laptop:</p>
+                    <input
+                      type="text"
+                      placeholder="Paste challenge code here"
+                      className="w-full px-3 py-2 bg-nat-bg border border-nat-border rounded-xl text-sm font-mono"
+                      onKeyDown={(e) => { if (e.key === "Enter") verifyManualEntry(e.target.value.trim()) }}
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setPairing(prev => ({ ...prev, showManualEntry: false }))}
+                        className="flex-1 px-4 py-2 bg-nat-sage border border-nat-border text-nat-forest rounded-xl text-xs font-medium"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={() => { const input = document.querySelector('input[placeholder="Paste challenge code here"]'); if (input) verifyManualEntry(input.value.trim()) }}
+                        className="flex-1 px-4 py-2 bg-nat-forest text-nat-bg rounded-xl text-xs font-serif font-bold"
+                      >
+                        Verify
+                      </button>
+                    </div>
+                  </div>
+                )}
               </>
             )}
 

@@ -1,24 +1,46 @@
 import React, { useEffect, useRef, useState } from "react"
 
+// Load jsQR from CDN for cross-browser QR decoding
+let jsQR = null
+let jsQRLoadPromise = null
+
+function loadJsQR() {
+  if (jsQR) return Promise.resolve(jsQR)
+  if (jsQRLoadPromise) return jsQRLoadPromise
+  
+  jsQRLoadPromise = new Promise((resolve, reject) => {
+    if (window.jsQR) {
+      jsQR = window.jsQR
+      resolve(jsQR)
+      return
+    }
+    const script = document.createElement('script')
+    script.src = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js'
+    script.onload = () => {
+      jsQR = window.jsQR
+      resolve(jsQR)
+    }
+    script.onerror = () => reject(new Error('Failed to load jsQR'))
+    document.head.appendChild(script)
+  })
+  return jsQRLoadPromise
+}
+
 export default function QRScanner({ onResult }) {
   const videoRef = useRef(null)
   const canvasRef = useRef(null)
   const [active, setActive] = useState(false)
   const [error, setError] = useState(null)
-  const detectorRef = useRef(null)
   const scanIntervalRef = useRef(null)
+  const [usingFallback, setUsingFallback] = useState(false)
 
   useEffect(() => {
     let mounted = true
 
     async function init() {
       try {
-        // Check for BarcodeDetector API (Chrome/Edge)
-        if (!("BarcodeDetector" in window)) {
-          throw new Error("Barcode detection not supported in this browser. Use Chrome or Edge.")
-        }
-
-        detectorRef.current = new BarcodeDetector({ formats: ["qr_code"] })
+        // Try to load jsQR for cross-browser support
+        await loadJsQR()
         
         const stream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: "environment" }
@@ -49,13 +71,27 @@ export default function QRScanner({ onResult }) {
   }, [])
 
   useEffect(() => {
-    if (!active || !detectorRef.current || !videoRef.current) return
+    if (!active || !videoRef.current || !jsQR) return
 
-    const scan = async () => {
+    const canvas = canvasRef.current
+    const video = videoRef.current
+    const ctx = canvas.getContext('2d', { willReadFrequently: true })
+
+    const scan = () => {
+      if (!active || !videoRef.current) return
+      
       try {
-        const barcodes = await detectorRef.current.detect(videoRef.current)
-        if (barcodes.length > 0 && barcodes[0].rawValue) {
-          onResult(barcodes[0].rawValue)
+        canvas.width = video.videoWidth
+        canvas.height = video.videoHeight
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+        
+        const code = jsQR(imageData.data, imageData.width, imageData.height, {
+          inversionAttempts: "dontInvert",
+        })
+        
+        if (code && code.data) {
+          onResult(code.data)
         }
       } catch (e) {
         // Detection failed, continue scanning

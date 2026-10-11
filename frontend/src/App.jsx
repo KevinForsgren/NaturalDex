@@ -10,6 +10,7 @@ import Journal from "./pages/Journal.jsx"
 import Profile from "./pages/Profile.jsx"
 import Discover from "./pages/Discover.jsx"
 import Login from "./pages/Login.jsx"
+import PairingPage from "./pages/PairingPage.jsx"
 import AuthProvider, { useAuth } from "./state/AuthContext.jsx"
 import { data } from "./lib/data.js"
 
@@ -35,11 +36,29 @@ function Shell() {
 
   const displayName = user && (user.username || user.name) ? user.username || user.name : "Explorer"
 
-  // Fetch home base status on mount
+  // Fetch home base status on mount and poll periodically
   useEffect(() => {
     let alive = true
-    data.homeBaseStatus().then((s) => alive && setHbStatus(s)).catch(() => {})
-    return () => { alive = false }
+    let pollInterval = null
+
+    const fetchStatus = () => {
+      data.homeBaseStatus().then((s) => {
+        if (alive) setHbStatus(s)
+      }).catch(() => {})
+    }
+
+    fetchStatus()
+    pollInterval = setInterval(fetchStatus, 30000) // Poll every 30 seconds
+
+    // Listen for pairing completion events
+    const handlePairingComplete = () => fetchStatus()
+    window.addEventListener('homebase-paired', handlePairingComplete)
+
+    return () => {
+      alive = false
+      if (pollInterval) clearInterval(pollInterval)
+      window.removeEventListener('homebase-paired', handlePairingComplete)
+    }
   }, [])
 
   const isPaired = hbStatus?.paired && hbStatus?.model_ready
@@ -95,6 +114,7 @@ export default function App() {
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/discover" element={<Discover />} />
+          <Route path="/pair/:challenge" element={<PairingPage />} />
           <Route element={<Shell />}>
             <Route path="/" element={<Home />} />
             <Route path="/collection" element={<Collection />} />

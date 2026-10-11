@@ -125,9 +125,9 @@ def create_discovery(session, user_id: int, payload: dict) -> dict:
     service.execute(
         "INSERT INTO discoveries "
         "(user_id, status, captured_at, latitude, longitude, location_accuracy_m, "
-        " display_location, category_hint, idempotency_key, created_at, updated_at) "
+        " display_location, category_hint, idempotency_key, genuineness_status, created_at, updated_at) "
         "VALUES (:uid, :status, :captured_at, :lat, :lng, :acc, :display, "
-        ":category_hint, :idempotency_key, :now, :now)",
+        ":category_hint, :idempotency_key, 'not_checked', :now, :now)",
         params,
     )
     service.commit()
