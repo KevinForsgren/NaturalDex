@@ -319,9 +319,11 @@ def test_pairing_challenge_single_use_and_expires(client):
     assert second.status_code == 400
 
 
-def test_home_base_required_for_submit(client):
+def test_home_base_required_for_submit(client, monkeypatch):
     token = _login(client, "scout")
     _, did = conftest.make_discovery(client)
+    # Use a real (non-mock) provider: without a paired home base it must be refused.
+    monkeypatch.setattr("api.discoveries.get_vision_provider", lambda: UnavailableProvider())
     resp = client.post(f"/api/discoveries/{did}/submit", cookies=_cookies(token))
     assert resp.status_code == 403
     assert resp.json()["detail"]["code"] == "HOME_BASE_NOT_PAIRED"
@@ -428,3 +430,48 @@ def test_card_image_missing_reference(client):
     resp = client.get(f"/api/collection/card-{pid}/image", cookies=_cookies(token))
     assert resp.status_code == 404
     assert resp.json()["detail"]["code"] == "IMAGE_NOT_FOUND"
+
+
+def test_me_restores_session_and_logout_protects(client):
+    token = _login(client, "scout")
+    me = client.get("/api/auth/me", cookies=_cookies(token))
+    assert me.status_code == 200
+    assert me.json()["user"]["username"] == "scout"
+    # after logout the session cookie is gone and protected routes are blocked
+    client.post("/api/auth/logout", cookies=_cookies(token))
+    denied = client.get("/api/daily-tasks", cookies=_cookies(token))
+    assert denied.status_code == 401
+
+
+def test_journal_recorded_after_discovery(client):
+    token = _login(client, "scout")
+    conftest.pair_home_base(client, token)
+    _, did = conftest.make_discovery(client, token=token)
+    client.post(f"/api/discoveries/{did}/submit", cookies=_cookies(token))
+    entries = client.get("/api/journal", cookies=_cookies(token)).json()["entries"]
+    assert len(entries) == 1
+    assert entries[0]["title"] == "Bougainvillea Observation"
+    assert entries[0]["card_url"]
+    assert entries[0]["xp_earned"] > 0
+
+
+def test_journal_is_isolated_between_users(client):
+    token_a = _login(client, "alice")
+    token_b = _login(client, "bob")
+    _accepted_card(client, token_a)
+    entries_b = client.get("/api/journal", cookies=_cookies(token_b)).json()["entries"]
+    assert entries_b == []
+    entries_a = client.get("/api/journal", cookies=_cookies(token_a)).json()["entries"]
+    assert len(entries_a) == 1
+
+
+def test_profile_stats_reflect_activity(client):
+    token = _login(client, "scout")
+    empty = client.get("/api/profile/stats", cookies=_cookies(token)).json()
+    assert empty["unique_species"] == 0
+    assert empty["xp_total"] == 0
+    _accepted_card(client, token)
+    stats = client.get("/api/profile/stats", cookies=_cookies(token)).json()
+    assert stats["unique_species"] == 1
+    assert stats["observations"] == 1
+    assert stats["xp_total"] >= 30

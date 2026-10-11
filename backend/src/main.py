@@ -19,6 +19,7 @@ from api.daily_tasks import router as daily_tasks_router
 from api.discoveries import router as discoveries_router
 from api.collection import router as collection_router
 from api.home_base import router as home_base_router
+from api.journal import router as journal_router
 from api.profile import router as profile_router
 from config.settings import get_settings
 from db.models import BaseService
@@ -75,6 +76,7 @@ app.include_router(daily_tasks_router, tags=["Daily Tasks"])
 app.include_router(discoveries_router, tags=["Discoveries"])
 app.include_router(collection_router, tags=["Collection"])
 app.include_router(home_base_router, tags=["Home Base"])
+app.include_router(journal_router, tags=["Journal"])
 app.include_router(profile_router, tags=["Profile"])
 
 

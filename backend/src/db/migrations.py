@@ -63,10 +63,32 @@ def _migration_0003_card_photo(conn):
         conn.execute(text("ALTER TABLE user_collection_cards ADD COLUMN card_photo_content_type VARCHAR"))
 
 
+def _migration_0004_journal(conn):
+    """Create the user-owned journal/activity timeline table."""
+    conn.execute(text(
+        "CREATE TABLE IF NOT EXISTS journal_entries ("
+        "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+        "user_id INTEGER NOT NULL, "
+        "entry_type VARCHAR NOT NULL, "
+        "species_id INTEGER, "
+        "card_id INTEGER, "
+        "title VARCHAR NOT NULL, "
+        "body TEXT, "
+        "location_label VARCHAR, "
+        "xp_earned INTEGER, "
+        "created_at DATETIME, "
+        "updated_at DATETIME)"
+    ))
+    conn.execute(text(
+        "CREATE INDEX IF NOT EXISTS ix_journal_entries_user_id ON journal_entries (user_id)"
+    ))
+
+
 MIGRATIONS = [
     ("0001_users_timestamps_and_timezone", _migration_0001_users_timestamps),
     ("0002_drop_studyloop_tables", _migration_0002_drop_studyloop_tables),
     ("0003_card_photo", _migration_0003_card_photo),
+    ("0004_journal", _migration_0004_journal),
 ]
 
 

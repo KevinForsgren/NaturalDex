@@ -17,7 +17,7 @@ from sqlalchemy.exc import IntegrityError
 
 from config.settings import get_settings
 from db.models import BaseService
-from services import cards, rewards, tasks
+from services import cards, journal as journal_service, rewards, tasks
 from services.home_base import active_home_base
 from services.storage import read_photo_bytes
 from services.vision import (
@@ -258,9 +258,13 @@ def submit_discovery(session, user_id: int, discovery_id: int, provider) -> dict
     if len(photos) != 3:
         raise DiscoveryError("THREE_PHOTOS_REQUIRED", "All three photos are required before running analysis.", 422)
 
-    home_base = active_home_base(service, user_id)
-    if home_base is None:
-        raise DiscoveryError("HOME_BASE_NOT_PAIRED", "Pair a home base before running analysis.", 403)
+    # A real local home base must be paired to authorize calls to Ollama. The
+    # deterministic mock provider has no external target, so it needs no pairing
+    # (it is the explicitly designated offline demo flow).
+    if provider.name != "mock":
+        home_base = active_home_base(service, user_id)
+        if home_base is None:
+            raise DiscoveryError("HOME_BASE_NOT_PAIRED", "Pair a home base before running analysis.", 403)
 
     if d["status"] != "accepted":
         service.execute(
@@ -316,7 +320,21 @@ def submit_discovery(session, user_id: int, discovery_id: int, provider) -> dict
 
         # XP is decided here by backend rules, never from the client/model.
         event = "first_discovery" if applied["is_first"] else "repeat_observation"
-        rewards.award_xp(service, user_id, event, discovery_id=d["id"])
+        awarded = rewards.award_xp(service, user_id, event, discovery_id=d["id"])
+        xp_value = rewards._EVENT_LABELS.get(event, 0)
+
+        # Persist an activity entry for the user's Field Journal timeline.
+        journal_service.create_entry(
+            service,
+            user_id=user_id,
+            entry_type="card_approved",
+            title=f"{result['commonName']} Observation",
+            body=result.get("summary"),
+            species_id=species["id"],
+            card_id=card["id"],
+            location_label=d.get("display_location"),
+            xp_earned=xp_value if awarded else 0,
+        )
 
         service.execute(
             "UPDATE discoveries SET status = 'accepted', species_id = :sid, "

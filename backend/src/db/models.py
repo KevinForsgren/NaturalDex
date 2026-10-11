@@ -304,6 +304,30 @@ class CollectionCardObservation(Base):
         )
 
 
+class JournalEntry(Base):
+    """A single, user-owned activity record for the Field Journal timeline."""
+
+    __tablename__ = "journal_entries"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    entry_type = Column(String, nullable=False)  # card_approved | discovery
+    species_id = Column(Integer, ForeignKey("species.id"), nullable=True)
+    card_id = Column(Integer, ForeignKey("user_collection_cards.id"), nullable=True)
+    title = Column(String, nullable=False)
+    body = Column(Text, nullable=True)
+    location_label = Column(String, nullable=True)
+    xp_earned = Column(Integer, nullable=True)
+    created_at = Column(DateTime, default=_utcnow)
+    updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow)
+
+    def __repr__(self):
+        return (
+            f"<JournalEntry(id={self.id}, user_id={self.user_id}, "
+            f"type={self.entry_type}, title={self.title})>"
+        )
+
+
 class XpEvent(Base):
     """Backend-awarded XP ledger. XP deltas are never client-supplied."""
 
