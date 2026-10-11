@@ -34,6 +34,7 @@ class Settings(BaseSettings):
     # Cookie names/policies for HttpOnly session cookies. Secure=True is only
     # correct behind HTTPS; local dev uses HTTP so it stays False by default.
     AUTH_COOKIE_NAME: str = Field(default="naturaldex_token", validation_alias="AUTH_COOKIE_NAME")
+    AUTH_COOKIE_DOMAIN: str = Field(default="", validation_alias="AUTH_COOKIE_DOMAIN")
     COOKIE_SECURE: bool = Field(default=False, validation_alias="COOKIE_SECURE")
     
     # CORS
