@@ -13,8 +13,24 @@ const iconMap = {
   BookmarkPlus, ZoomIn, BookOpen,
 }
 
+// The backend seeds catalog icons as kebab-case slugs; map them to lucide too.
+const slugMap = {
+  leaf: Leaf, flower: Flower2, "flower-2": Flower2, scan: Scan, sprout: Sprout,
+  "tree-deciduous": TreePine, "tree-pine": TreePine, trees: Trees,
+  "refresh-cw": RefreshCw, "paw-print": PawPrint, bird: Bird, bug: Bug,
+  rabbit: Rabbit, users: Users, mushroom: Sprout, "map-pin": MapPin, target: Target,
+  "bookmark-plus": BookmarkPlus, sun: Sun, "zoom-in": ZoomIn, mountain: Mountain,
+  flame: Flame, sparkles: Sparkles, "check-circle": CheckCircle, "pen-tool": PenTool,
+  compass: Compass, star: Star, clock: Clock, thermometer: Thermometer,
+  "git-merge": GitMerge, layers: Layers,
+}
+
 export function taskIcon(name) {
-  return iconMap[name] || Leaf
+  if (!name) return Leaf
+  const key = String(name)
+  if (iconMap[key]) return iconMap[key]
+  if (slugMap[key]) return slugMap[key]
+  return Leaf
 }
 
 export function categoryIcon(cat) {

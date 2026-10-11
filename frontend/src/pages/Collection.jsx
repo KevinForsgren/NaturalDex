@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
-import { Search, Lock } from "lucide-react"
+import { Search, Lock, Leaf } from "lucide-react"
 import { data } from "../lib/data.js"
 import { CategoryBadge } from "../lib/icons.jsx"
 
@@ -23,7 +23,7 @@ export default function Collection() {
     let alive = true
     setLoading(true)
     data.collection(active || undefined)
-      .then((c) => alive && setCards(Array.isArray(c) ? c : []))
+      .then((res) => alive && setCards((res && res.cards) || (Array.isArray(res) ? res : [])))
       .catch(() => alive && setCards([]))
       .finally(() => alive && setLoading(false))
     return () => { alive = false }
@@ -32,8 +32,9 @@ export default function Collection() {
   const discovered = cards.filter((c) => c.discovered)
   const q = query.trim().toLowerCase()
   const filtered = cards.filter((c) => {
-    const name = (c.species?.common_name || c.commonName || "").toLowerCase()
-    const sci = (c.species?.scientific_name || c.scientificName || "").toLowerCase()
+    const sp = c.species || {}
+    const name = (sp.common_name || "").toLowerCase()
+    const sci = (sp.scientific_name || "").toLowerCase()
     return !q || name.includes(q) || sci.includes(q)
   })
 
@@ -74,15 +75,21 @@ export default function Collection() {
         <div className="grid grid-cols-2 gap-3 pt-1">
           {[0, 1, 2, 3].map((i) => <div key={i} className="h-40 bg-nat-sage/40 rounded-xl animate-pulse" />)}
         </div>
+      ) : cards.length === 0 ? (
+        <div className="text-center py-12 space-y-2">
+          <p className="font-serif text-lg font-bold text-nat-forest">Your collection is empty</p>
+          <p className="text-sm text-nat-muted">Discover your first specimen to grow your field journal.</p>
+          <button onClick={() => navigate("/discover")} className="mt-2 px-5 py-2.5 bg-nat-forest text-nat-bg rounded-xl text-sm font-semibold">Start Exploring</button>
+        </div>
       ) : (
         <div className="grid grid-cols-2 gap-3 pt-1">
           {filtered.map((c) => {
-            const sp = c.species || c
+            const sp = c.species || {}
             if (!c.discovered) {
               return (
-                <div key={sp.id} className="rounded-2xl border border-dashed border-nat-border bg-nat-paper/40 p-3 flex flex-col items-center justify-center text-center min-h-40 space-y-1.5">
-                  <Lock className="w-5 h-5 text-nat-muted" />
-                  <span className="font-serif font-bold text-nat-forest text-sm">???</span>
+                <div key={sp.id || sp.canonical_key} className="rounded-2xl border border-dashed border-nat-border bg-nat-paper/40 p-3 flex flex-col items-center justify-center text-center min-h-40 space-y-1.5">
+                  <span className="text-[9px] uppercase tracking-wider text-nat-muted font-semibold">Undiscovered</span>
+                  <div className="flex items-center gap-1"><Lock className="w-3.5 h-3.5 text-nat-muted" /><span className="font-serif font-bold text-nat-forest text-sm">???</span></div>
                   <CategoryBadge category={sp.category} />
                   {sp.hint && <p className="text-[11px] text-nat-muted leading-snug italic">“{sp.hint}”</p>}
                 </div>
@@ -90,15 +97,18 @@ export default function Collection() {
             }
             return (
               <button key={c.public_id || sp.id} onClick={() => navigate(c.public_id ? `/collection/card-${c.public_id}` : "/collection")} className="text-left bg-nat-paper border border-nat-border rounded-2xl overflow-hidden shadow-paper hover:shadow-paper-lg transition-all group">
-                <div className="h-28 bg-nat-sage/50 overflow-hidden">
-                  <img src={(c.image_url || sp.photoUrl)} alt={sp.common_name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                <div className="h-28 bg-nat-sage/50 overflow-hidden flex items-center justify-center">
+                  {c.image_url ? <img src={c.image_url} alt={sp.common_name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" /> : <Leaf className="w-8 h-8 text-nat-forest" />}
                 </div>
                 <div className="p-2.5 space-y-1">
-                  <p className="font-serif font-bold text-sm text-nat-forest leading-tight truncate">{sp.common_name}</p>
+                  <div className="flex items-center justify-between gap-1">
+                    <p className="font-serif font-bold text-sm text-nat-forest leading-tight truncate">{sp.common_name}</p>
+                    {c.count > 1 && <span className="text-[9px] text-nat-muted whitespace-nowrap">observed {c.count}x</span>}
+                  </div>
                   <p className="text-[10px] text-nat-muted font-serif italic truncate">{sp.scientific_name}</p>
                   <div className="flex items-center justify-between">
                     <CategoryBadge category={sp.category} />
-                    <span className="text-[10px] font-semibold text-nat-clay">{c.count ?? 1} seen</span>
+                    <span className="text-[10px] font-semibold text-nat-clay capitalize">{sp.rarity || "Common"}</span>
                   </div>
                 </div>
               </button>

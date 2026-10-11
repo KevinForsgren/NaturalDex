@@ -1,5 +1,5 @@
 import React, { useState } from "react"
-import { useNavigate } from "react-router-dom"
+import { useNavigate, Navigate } from "react-router-dom"
 import {
   Camera, X, ChevronLeft, Image as ImageIcon, RotateCcw, Star, MapPin,
   Calendar, Loader2, AlertTriangle, ZoomIn, CheckCircle2, BookmarkPlus, Scan,
@@ -7,6 +7,7 @@ import {
 import Modal from "../components/Modal.jsx"
 import { useToast } from "../components/Toast.jsx"
 import { data } from "../lib/data.js"
+import { useAuth } from "../state/AuthContext.jsx"
 import useCamera, { captureFrame, dataUrlToBlob } from "../hooks/useCamera.js"
 
 const CATEGORIES = [
@@ -18,6 +19,7 @@ const CATEGORIES = [
 export default function Discover() {
   const navigate = useNavigate()
   const toast = useToast()
+  const { status: authStatus } = useAuth()
   const camera = useCamera("environment")
 
   const [step, setStep] = useState("intro") // intro | capture | review | result
@@ -32,6 +34,10 @@ export default function Discover() {
 
   const captured = slots.filter(Boolean).length
   const cameraReady = camera.state.status === "ready"
+
+  if (authStatus !== "authed") {
+    return <Navigate to="/login" replace />
+  }
 
   function beginCapture() {
     camera.request().then((status) => {
@@ -143,12 +149,6 @@ export default function Discover() {
                 <Camera className="w-5 h-5" /> Start Camera
               </button>
             )}
-
-            {data.isDemo() && (
-              <p className="text-center text-[11px] text-nat-muted flex items-center justify-center gap-1">
-                <Scan className="w-3.5 h-3.5" /> Demo mode — capture uses your real camera; identification is simulated and labeled.
-              </p>
-            )}
           </div>
         </div>
       )}
@@ -186,7 +186,7 @@ export default function Discover() {
               <div className="absolute top-4 left-4 right-4 z-20 flex justify-between items-center">
                 <button onClick={() => { camera.stop(); setStep("intro") }} className="p-2 rounded-full bg-black/50 text-nat-bg backdrop-blur-sm"><X className="w-5 h-5" /></button>
                 <div className="px-3 py-1 rounded-full bg-black/50 text-nat-bg text-xs backdrop-blur-sm border border-white/10 flex items-center gap-1.5">
-                  <MapPin className="w-3.5 h-3.5 text-nat-golden" /> Approx. Pine Ridge Woods
+                  <MapPin className="w-3.5 h-3.5 text-nat-golden" /> Location not added
                 </div>
                 {/* gallery icon -> in-session preview panel, NOT the OS picker */}
                 <button onClick={() => setPreviewOpen(true)} className="p-2 rounded-full bg-black/50 text-nat-bg backdrop-blur-sm hover:bg-black/70" title="Review captured photos">
@@ -294,9 +294,6 @@ export default function Discover() {
               {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Scan className="w-5 h-5" />}
               {submitting ? "Analyzing 3 Views…" : "Submit 3 Photos"}
             </button>
-            {data.isDemo() && (
-              <p className="text-center text-[11px] text-nat-muted">Demo mode: identification runs locally on simulated data and is labeled as a demo result.</p>
-            )}
           </div>
         </div>
       )}
@@ -321,9 +318,6 @@ export default function Discover() {
                   <Star className="w-3.5 h-3.5 fill-nat-golden text-nat-golden" /> {result.specimen.rarity || "Common"} Specimen
                 </div>
                 <div className="absolute top-3 right-3 bg-nat-forest text-nat-bg px-3 py-1 rounded-full text-xs font-serif font-bold">+{result.specimen.xp} XP</div>
-                {result.isDemo && (
-                  <div className="absolute bottom-3 left-3 bg-black/60 backdrop-blur-md text-nat-golden text-[10px] px-2.5 py-1 rounded-full border border-nat-golden/40">Demo result</div>
-                )}
               </div>
 
               <div className="space-y-1">
@@ -339,7 +333,7 @@ export default function Discover() {
 
               <div className="grid grid-cols-2 gap-2 pt-2 border-t border-nat-border/60 text-xs">
                 <div className="flex items-center gap-2 text-nat-muted"><Calendar className="w-3.5 h-3.5 text-nat-clay" /> Captured Today</div>
-                <div className="flex items-center gap-2 text-nat-muted"><MapPin className="w-3.5 h-3.5 text-nat-clay" /> Pine Ridge Woods</div>
+                <div className="flex items-center gap-2 text-nat-muted"><MapPin className="w-3.5 h-3.5 text-nat-clay" /> Location not added</div>
               </div>
             </div>
 
