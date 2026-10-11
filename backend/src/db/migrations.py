@@ -84,11 +84,26 @@ def _migration_0004_journal(conn):
     ))
 
 
+def _migration_0005_discovery_genuineness(conn):
+    """Add genuineness_status column to discoveries with default."""
+    cols = _columns(conn, "discoveries")
+    if "genuineness_status" not in cols:
+        conn.execute(text(
+            "ALTER TABLE discoveries ADD COLUMN genuineness_status VARCHAR DEFAULT 'not_checked'"
+        ))
+    else:
+        # Ensure existing rows have the default
+        conn.execute(text(
+            "UPDATE discoveries SET genuineness_status = 'not_checked' WHERE genuineness_status IS NULL"
+        ))
+
+
 MIGRATIONS = [
     ("0001_users_timestamps_and_timezone", _migration_0001_users_timestamps),
     ("0002_drop_studyloop_tables", _migration_0002_drop_studyloop_tables),
     ("0003_card_photo", _migration_0003_card_photo),
     ("0004_journal", _migration_0004_journal),
+    ("0005_discovery_genuineness", _migration_0005_discovery_genuineness),
 ]
 
 

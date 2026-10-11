@@ -6,7 +6,8 @@ Creates short-lived single-use QR challenges, redeems them to activate a home
 base, reports pairing/model status, and lets the owner revoke a paired base.
 """
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -72,3 +73,217 @@ def revoke(home_base_id: int, db: Session = Depends(get_db), user=Depends(get_cu
     except ValueError as exc:
         raise HTTPException(status_code=404, detail={"code": "HOME_BASE_NOT_FOUND", "message": str(exc)})
     return {"message": "Home base revoked."}
+
+
+@router.get("/pair", response_class=HTMLResponse)
+def pairing_page(request: Request, challenge: str = None):
+    """
+    Serve the pairing page with QR code.
+    The challenge token is passed as a query parameter from the phone.
+    """
+    if not challenge:
+        return HTMLResponse(
+            content="""
+            <!DOCTYPE html>
+            <html>
+            <head><title>NatureDex Pairing</title><meta name="viewport" content="width=device-width, initial-scale=1"></head>
+            <body style="font-family: system-ui; max-width: 400px; margin: 2rem auto; padding: 1rem; text-align: center;">
+                <h1>NatureDex Home Base</h1>
+                <p>No pairing challenge provided. Open this URL with a <code>challenge</code> query parameter from your phone.</p>
+                <p>Example: <code>/home-base/pair?challenge=abc123...</code></p>
+            </body>
+            </html>
+            """,
+            status_code=400
+        )
+    
+    # Generate QR code as SVG
+    import qrcode
+    import qrcode.image.svg
+    from io import BytesIO
+    
+    qr = qrcode.QRCode(
+        version=None,
+        error_correction=qrcode.constants.ERROR_CORRECT_M,
+        box_size=10,
+        border=4,
+    )
+    # QR contains the challenge token and backend URL for phone to call
+    backend_url = str(request.base_url).rstrip('/')
+    qr_data = f"{backend_url}/api/home-base/verify-pairing?challenge={challenge}"
+    qr.add_data(qr_data)
+    qr.make(fit=True)
+    
+    img = qr.make_image(image_factory=qrcode.image.svg.SvgPathImage)
+    buffer = BytesIO()
+    img.save(buffer)
+    qr_svg = buffer.getvalue().decode('utf-8')
+    
+    html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>NatureDex - Pair Home Base</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <style>
+            body {{ font-family: system-ui, sans-serif; max-width: 400px; margin: 2rem auto; padding: 1rem; text-align: center; background: #f5f0e4; color: #26352a; }}
+            .card {{ background: #e7ddc9; border: 1px solid #d7dccf; border-radius: 1rem; padding: 1.5rem; box-shadow: 0 2px 10px rgba(38,53,42,0.05); }}
+            h1 {{ font-family: Georgia, serif; color: #244a35; margin-bottom: 0.5rem; }}
+            .subtitle {{ color: #667265; font-size: 0.875rem; margin-bottom: 1.5rem; }}
+            .qr-container {{ background: white; padding: 1rem; border-radius: 0.75rem; display: inline-block; margin: 1rem 0; }}
+            .token {{ font-family: monospace; font-size: 0.75rem; color: #667265; word-break: break-all; margin: 1rem 0; }}
+            .status {{ margin-top: 1rem; padding: 0.75rem; border-radius: 0.5rem; font-size: 0.875rem; }}
+            .status.waiting {{ background: #dce5d4; color: #244a35; }}
+            .status.paired {{ background: #d4a65a; color: #f5f0e4; }}
+            .status.error {{ background: #c97960; color: #f5f0e4; }}
+            .spinner {{ border: 3px solid #dce5d4; border-top: 3px solid #244a35; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; margin: 1rem auto; }}
+            @keyframes spin {{ 0% {{ transform: rotate(0deg); }} 100% {{ transform: rotate(360deg); }} }}
+        </style>
+    </head>
+    <body>
+        <div class="card">
+            <h1>NatureDex</h1>
+            <p class="subtitle">Pair your Home Base for local AI identification</p>
+            
+            <div class="qr-container">
+                {qr_svg}
+            </div>
+            
+            <p class="token">Challenge: {challenge[:16]}...</p>
+            
+            <div id="status" class="status waiting">
+                <div class="spinner"></div>
+                Waiting for phone to verify...
+            </div>
+            
+            <p style="font-size: 0.75rem; color: #667265; margin-top: 1rem;">
+                Scan the QR code with your NatureDex app to complete pairing.
+            </p>
+        </div>
+        
+        <script>
+            async function pollStatus() {{
+                try {{
+                    const res = await fetch('/api/home-base/pair-status?challenge={challenge}');
+                    const data = await res.json();
+                    const statusEl = document.getElementById('status');
+                    
+                    if (data.status === 'waiting') {{
+                        setTimeout(pollStatus, 2000);
+                    }} else if (data.status === 'paired') {{
+                        statusEl.className = 'status paired';
+                        statusEl.innerHTML = '✓ Paired successfully! Model ready: ' + (data.model_ready ? 'Yes' : 'No');
+                    }} else if (data.status === 'error') {{
+                        statusEl.className = 'status error';
+                        statusEl.innerHTML = '✗ Error: ' + data.message;
+                    }}
+                }} catch (e) {{
+                    setTimeout(pollStatus, 2000);
+                }}
+            }}
+            pollStatus();
+        </script>
+    </body>
+    </html>
+    """
+    return HTMLResponse(content=html)
+
+
+@router.get("/pair-status")
+def pairing_status(challenge: str, db: Session = Depends(get_db)):
+    """Poll endpoint for the pairing page to check if phone has verified."""
+    token_hash = hb._hash_token(challenge)
+    row = db.execute(
+        "SELECT id, user_id, used_at, expires_at FROM pairing_challenges WHERE challenge_token_hash = :hash",
+        {"hash": token_hash}
+    ).fetchone()
+    
+    if not row:
+        return {"status": "error", "message": "Challenge not found"}
+    
+    if row.used_at:
+        # Challenge was used, check if home base was created
+        hb_row = db.execute(
+            "SELECT id, status FROM home_bases WHERE token_hash = :hash ORDER BY id DESC LIMIT 1",
+            {"hash": token_hash}
+        ).fetchone()
+        
+        if hb_row:
+            from services.vision import get_vision_provider
+            provider = get_vision_provider()
+            return {
+                "status": "paired",
+                "model_ready": provider.is_available(),
+                "home_base_status": hb_row.status
+            }
+        return {"status": "error", "message": "Pairing completed but no home base found"}
+    
+    # Check expiry
+    from datetime import datetime, timezone
+    if row.expires_at:
+        expires = row.expires_at
+        if isinstance(expires, str):
+            expires = datetime.fromisoformat(expires)
+        if expires.replace(tzinfo=timezone.utc) < datetime.now(timezone.utc):
+            return {"status": "error", "message": "Challenge expired"}
+    
+    return {"status": "waiting"}
+
+
+class VerifyPairingRequest(BaseModel):
+    challenge: str
+
+
+@router.post("/verify-pairing")
+def verify_pairing(payload: VerifyPairingRequest, db: Session = Depends(get_db), user=Depends(get_current_user)):
+    """
+    Phone calls this after scanning the QR code on the laptop.
+    Verifies the challenge belongs to the current user and completes pairing.
+    """
+    uid = _user_id(user)
+    service = BaseService(db)
+    
+    # Verify challenge exists and belongs to this user
+    token_hash = hb._hash_token(payload.challenge)
+    row = service.fetchone(
+        "SELECT id, user_id, used_at, expires_at FROM pairing_challenges WHERE challenge_token_hash = :hash",
+        {"hash": token_hash}
+    )
+    
+    if not row:
+        raise HTTPException(status_code=404, detail={"code": "CHALLENGE_NOT_FOUND", "message": "Pairing challenge not found."})
+    
+    ch = dict(row._asdict())
+    if ch["user_id"] != uid:
+        raise HTTPException(status_code=403, detail={"code": "CHALLENGE_MISMATCH", "message": "This challenge belongs to another user."})
+    
+    if ch["used_at"]:
+        raise HTTPException(status_code=400, detail={"code": "CHALLENGE_USED", "message": "This challenge has already been used."})
+    
+    from datetime import datetime, timezone
+    if ch["expires_at"]:
+        expires = ch["expires_at"]
+        if isinstance(expires, str):
+            expires = datetime.fromisoformat(expires)
+        if expires.replace(tzinfo=timezone.utc) < datetime.now(timezone.utc):
+            raise HTTPException(status_code=400, detail={"code": "CHALLENGE_EXPIRED", "message": "Challenge expired. Generate a new one."})
+    
+    # Redeem the challenge - this creates the home base
+    try:
+        home_base = hb.redeem_pairing(service, payload.challenge, "Laptop Home Base")
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail={"code": "PAIRING_FAILED", "message": str(exc)})
+    
+    if home_base["id"] is None:
+        raise HTTPException(status_code=400, detail={"code": "PAIRING_FAILED", "message": "Pairing failed."})
+    
+    # Check model availability
+    from services.vision import get_vision_provider
+    provider = get_vision_provider()
+    model_ready = provider.is_available()
+    
+    return {
+        "status": "paired",
+        "home_base": home_base,
+        "model_ready": model_ready
+    }

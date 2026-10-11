@@ -40,6 +40,7 @@ export const data = {
 
   // ---- home base / pairing ----
   pairingChallenge: () => api.pairingChallenge(),
+  verifyPairing: (challenge) => api.verifyPairing(challenge),
   homeBaseStatus: () => api.homeBaseStatus(),
   revokeHomeBase: (id) => api.revokeHomeBase(id),
 

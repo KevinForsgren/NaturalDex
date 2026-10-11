@@ -21,7 +21,7 @@ NaturalDex turns outdoor observation into a collection game. Users capture three
 - **Local AI identification** — Runs on user's paired laptop via Ollama (privacy-preserving)
 - **Collection cards** — Stable public URLs for each discovered species
 - **Field journal** — Timeline of discoveries with XP progression
-- **Home base pairing** — QR code pairing with local Ollama instance
+- **Home base pairing** — QR code pairing with local Ollama instance (phone scans QR on laptop)
 - **Offline-first** — No cloud APIs required for core functionality
 
 ## Project Structure
@@ -79,16 +79,70 @@ cp .env.template .env
 Key variables:
 - `DATABASE_URL` — SQLite path (default: `./Database/naturedex.db`)
 - `VISION_PROVIDER` — `ollama` (default) or `mock` for testing
-- `OLLAMA_BASE_URL` — Home base Ollama endpoint
+- `OLLAMA_BASE_URL` — Home base Ollama endpoint (default: `http://localhost:11434`)
+- `OLLAMA_MODEL` — Vision model name (default: `llava-phi3`)
 - `SECRET_KEY` — JWT signing key (change in production)
+- `AUTH_COOKIE_DOMAIN` — Leave empty for local dev with Vite proxy
 
-### Home Base Pairing
-1. Run Ollama on your laptop: `ollama serve`
-2. Pull a vision model: `ollama pull llava` (or your preferred model)
-3. In the app, go to Profile → "Laptop-Hosted AI Model" → Generate Code
-4. Scan the QR code with the home-base companion app or enter the token manually
+### Vision Model (Ollama)
 
-## API Endpoints
+The app requires a **vision-capable** Ollama model. Text-only models (gemma3, llama3, etc.) **will not work** for image identification.
+
+**Recommended models (all vision-capable):**
+
+| Model | Size | Notes |
+|-------|------|-------|
+| `llava-phi3` | 3.8B | Fast, good balance of speed/accuracy |
+| `moondream2` | 1.8B | Smallest vision model, fits tight constraints |
+| `bakllava` | 7B | Optimized LLaVA variant |
+| `llava-llama3` | 8B | Better reasoning, larger |
+| `llava` | 7B | Original LLaVA, reliable |
+
+**Install & run:**
+```bash
+# Install Ollama
+curl -fsSL https://ollama.com/install.sh | sh  # Linux/macOS
+# Windows: download from https://ollama.com/download
+
+# Pull a vision model (choose one)
+ollama pull llava-phi3      # Recommended default
+# ollama pull moondream2    # For 4B limit
+# ollama pull bakllava      # Alternative
+
+# Start Ollama server
+ollama serve
+```
+
+Update `.env`:
+```env
+VISION_PROVIDER=ollama
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_MODEL=llava-phi3
+```
+
+### Home Base Pairing (Phone ↔ Laptop)
+
+**New flow (no companion app needed):**
+
+1. **On your laptop**: Start Ollama (`ollama serve`) and ensure the model is pulled
+2. **On your phone**: Open the app (via ngrok URL or LAN), go to **Profile → Laptop-Hosted AI Model**
+3. **Tap "Generate Pairing Code"** — creates a short-lived challenge
+4. **Copy the "Laptop URL"** shown (e.g., `http://your-laptop-ip:8000/home-base/pair?challenge=abc123...`)
+5. **Open that URL on your laptop** — shows a QR code page
+6. **On your phone**: Tap **"Verify Pairing"** — scans the QR and completes pairing
+7. **Laptop page updates automatically** — shows "Paired!" and model readiness
+
+**If phone and laptop are on different networks (e.g., phone on cellular):**
+
+```bash
+# On laptop, expose backend via ngrok
+ngrok http 8000
+
+# Use the ngrok HTTPS URL as the "Laptop URL" in step 4
+# Example: https://abc123.ngrok-free.app/home-base/pair?challenge=...
+```
+
+### API Endpoints
 
 | Area | Endpoints |
 |------|-----------|
@@ -98,7 +152,66 @@ Key variables:
 | Collection | `GET /api/collection`, `GET /api/collection/card-{public_id}` |
 | Journal | `GET /api/journal` |
 | Profile | `GET /api/profile/stats`, `PUT /api/profile/timezone` |
-| Home Base | `POST /api/home-base/pairing-challenge`, `POST /api/home-base/pair`, `GET /api/home-base/status` |
+| Home Base | `POST /api/home-base/pairing-challenge`, `GET /home-base/pair`, `GET /api/home-base/pair-status`, `POST /api/home-base/verify-pairing`, `GET /api/home-base/status`, `POST /api/home-base/{id}/revoke` |
+
+## Discovery Flow & Data Pipeline
+
+```
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│  Phone      │────▶│  Backend    │────▶│  Ollama     │────▶│  Backend    │
+│  (3 photos) │     │  (queue)    │     │  (vision)   │     │  (persist)  │
+└─────────────┘     └─────────────┘     └─────────────┘     └─────────────┘
+                           │                                        │
+                           │                                        ▼
+                    ┌──────┴──────┐                        ┌──────────────────┐
+                    │  Validation │                        │  Database Ops    │
+                    │  (policy)   │                        │  • species       │
+                    └─────────────┘                        │  • collection    │
+                                                           │  • observations  │
+                                                           │  • XP events     │
+                                                           │  • journal       │
+                                                           │  • daily tasks   │
+                                                           └──────────────────┘
+```
+
+**Vision model output (advisory JSON per `rule/RULE.md`):**
+```json
+{
+  "accepted": true,
+  "category": "flora",
+  "commonName": "Bougainvillea",
+  "scientificName": "Bougainvillea spectabilis",
+  "confidence": 0.91,
+  "sameSubjectAcrossImages": true,
+  "imageQuality": "usable",
+  "genuinenessAssessment": "no_obvious_manipulation_detected",
+  "reasonCode": null,
+  "summary": "A flowering ornamental shrub with vivid papery bracts.",
+  "interestingFact": "The colorful structures are bracts surrounding small flowers."
+}
+```
+
+**Backend applies policy** (`services/vision.py:classify_rejection`) and only on acceptance:
+- Creates/updates `species` (canonical catalogue)
+- Creates/increments `user_collection_cards` (your Pokédex entry with `count`)
+- Links `collection_card_observations` (idempotent, prevents double-count)
+- Awards XP via `xp_events`
+- Creates `journal_entries` (Field Journal timeline)
+- Advances daily task progress
+
+## Mobile Access (ngrok)
+
+To use the app on your phone while backend runs on laptop:
+
+```bash
+# On laptop (where backend runs)
+ngrok http 8000
+
+# Copy the HTTPS URL (e.g., https://abc123.ngrok-free.app)
+# Open that URL on your phone's browser
+```
+
+The Vite dev server proxies `/api/*` to the backend, so ngrok only needs to tunnel the backend port (8000).
 
 ## Development
 

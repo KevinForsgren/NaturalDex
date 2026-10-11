@@ -1,6 +1,6 @@
-import React from "react"
+import React, { useEffect, useState } from "react"
 import { Routes, Route, Navigate, Outlet, useLocation } from "react-router-dom"
-import { Compass, Loader2, Laptop } from "lucide-react"
+import { Compass, Loader2, Laptop, Wifi, WifiOff } from "lucide-react"
 import ToastProvider, { useToast } from "./components/Toast.jsx"
 import BottomNav from "./components/BottomNav.jsx"
 import Home from "./pages/Home.jsx"
@@ -11,6 +11,7 @@ import Profile from "./pages/Profile.jsx"
 import Discover from "./pages/Discover.jsx"
 import Login from "./pages/Login.jsx"
 import AuthProvider, { useAuth } from "./state/AuthContext.jsx"
+import { data } from "./lib/data.js"
 
 function LoadingScreen() {
   return (
@@ -27,10 +28,22 @@ function Shell() {
   const { status, user } = useAuth()
   const location = useLocation()
   const toast = useToast()
+  const [hbStatus, setHbStatus] = useState(null)
+
   if (status === "loading") return <LoadingScreen />
   if (status !== "authed") return <Navigate to="/login" replace state={{ from: location }} />
 
   const displayName = user && (user.username || user.name) ? user.username || user.name : "Explorer"
+
+  // Fetch home base status on mount
+  useEffect(() => {
+    let alive = true
+    data.homeBaseStatus().then((s) => alive && setHbStatus(s)).catch(() => {})
+    return () => { alive = false }
+  }, [])
+
+  const isPaired = hbStatus?.paired && hbStatus?.model_ready
+  const isConnected = hbStatus?.paired
 
   return (
     <div className="min-h-screen flex flex-col items-center antialiased selection:bg-nat-sage selection:text-nat-forest">
@@ -46,12 +59,25 @@ function Shell() {
             </div>
           </div>
           <button
-            onClick={() => toast({ title: "Edge AI", message: "Home base connected — local identification ready." })}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-nat-sage/60 border border-nat-border text-xs font-medium text-nat-forest hover:bg-nat-sage transition-all"
+            onClick={() => toast({ 
+              title: "Edge AI", 
+              message: isPaired 
+                ? "Home base connected — local identification ready." 
+                : isConnected 
+                  ? "Home base paired but model not ready. Check Ollama on laptop." 
+                  : "No home base paired. Go to Profile to pair your laptop."
+            })}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-medium transition-all ${
+              isPaired 
+                ? "bg-emerald-50 border-emerald-200 text-emerald-700" 
+                : isConnected 
+                  ? "bg-amber-50 border-amber-200 text-amber-700" 
+                  : "bg-nat-sage/60 border-nat-border text-nat-forest"
+            }`}
           >
-            <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse" />
-            <span className="text-[11px]">Edge AI Ready</span>
-            <Laptop className="w-3.5 h-3.5 ml-0.5 text-nat-muted" />
+            <span className={`w-2 h-2 rounded-full animate-pulse ${isPaired ? "bg-emerald-600" : isConnected ? "bg-amber-500" : "bg-nat-muted"}`} />
+            <span className="text-[11px]">{isPaired ? "Edge AI Ready" : isConnected ? "Model Offline" : "Not Paired"}</span>
+            {isPaired ? <Wifi className="w-3.5 h-3.5 ml-0.5 text-emerald-600" /> : isConnected ? <WifiOff className="w-3.5 h-3.5 ml-0.5 text-amber-500" /> : <Laptop className="w-3.5 h-3.5 ml-0.5 text-nat-muted" />}
           </button>
         </header>
 

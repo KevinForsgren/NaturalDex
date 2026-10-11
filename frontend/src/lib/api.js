@@ -120,6 +120,7 @@ export const api = {
   // Home base / pairing
   pairingChallenge: (auth) => req("POST", "/home-base/pairing-challenge", { auth }),
   pair: (token, name, auth) => req("POST", "/home-base/pair", { json: { token, name }, auth }),
+  verifyPairing: (challenge, auth) => req("POST", "/home-base/verify-pairing", { json: { challenge }, auth }),
   homeBaseStatus: (auth) => req("GET", "/home-base/status", { auth }),
   revokeHomeBase: (id, auth) => req("POST", `/home-base/${id}/revoke`, { auth }),
 
