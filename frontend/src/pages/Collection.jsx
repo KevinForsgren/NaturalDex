@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
 import { Search, Lock } from "lucide-react"
 import { data } from "../lib/data.js"
-import { CategoryBadge } from "../lib/icons.js"
+import { CategoryBadge } from "../lib/icons.jsx"
 
 const FILTERS = [
   { key: "", label: "All" },

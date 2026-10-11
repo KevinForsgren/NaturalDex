@@ -1,7 +1,7 @@
 import {
   Flower2, Sprout, Leaf, Bug, Sun, Compass, Layers, Star, TreePine, PenTool,
   MapPin, Sparkles, Clock, RefreshCw, Thermometer, GitMerge, CheckCircle, Trees,
-  PawPrint, Bird, Rabbit, Users, Mushroom, Mountain, Flame, Target, Scan,
+  PawPrint, Bird, Rabbit, Users, Mountain, Flame, Target, Scan,
   BookmarkPlus, ZoomIn, BookOpen,
 } from "lucide-react"
 
@@ -9,7 +9,7 @@ import {
 const iconMap = {
   Flower2, Sprout, Leaf, Bug, Sun, Compass, Layers, Star, TreePine, PenTool,
   MapPin, Sparkles, Clock, RefreshCw, Thermometer, GitMerge, CheckCircle, Trees,
-  PawPrint, Bird, Rabbit, Users, Mushroom, Mountain, Flame, Target, Scan,
+  PawPrint, Bird, Rabbit, Users, Mountain, Flame, Target, Scan,
   BookmarkPlus, ZoomIn, BookOpen,
 }
 
@@ -19,7 +19,7 @@ export function taskIcon(name) {
 
 export function categoryIcon(cat) {
   if (cat === "flora") return Flower2
-  if (cat === "fungi") return Mushroom
+  if (cat === "fungi") return Sprout
   if (cat === "fauna") return Bug
   return Leaf
 }

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import { ChevronLeft, Star, MapPin, Calendar } from "lucide-react"
 import { data } from "../lib/data.js"
-import { CategoryBadge } from "../lib/icons.js"
+import { CategoryBadge } from "../lib/icons.jsx"
 
 export default function CardDetail() {
   const { publicId } = useParams()

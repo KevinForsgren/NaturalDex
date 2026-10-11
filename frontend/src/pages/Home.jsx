@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom"
 import { Compass, Laptop, Camera, Leaf } from "lucide-react"
 import { data } from "../lib/data.js"
 import { useToast } from "../components/Toast.jsx"
-import { taskIcon } from "../lib/icons.js"
+import { taskIcon } from "../lib/icons.jsx"
 
 export default function Home() {
   const navigate = useNavigate()
