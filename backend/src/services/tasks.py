@@ -126,10 +126,11 @@ def _select_tasks(service, user_id: int) -> list:
 
 
 def _set_exists(service, user_id: int, task_date: date):
-    return service.fetchone(
+    row = service.fetchone(
         "SELECT id FROM user_daily_task_sets WHERE user_id = :uid AND task_date = :d",
         {"uid": user_id, "d": task_date},
     )
+    return dict(row._asdict()) if row else None
 
 
 def _task_rows(service, task_set_id: int) -> list:

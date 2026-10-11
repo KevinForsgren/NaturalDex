@@ -36,7 +36,7 @@ export const data = {
 
   // ---- journal / profile ----
   journal: () => api.journal(),
-  profile: () => api.profile(),
+  profile: () => api.profileStats(),
 
   // ---- home base / pairing ----
   pairingChallenge: () => api.pairingChallenge(),
