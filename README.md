@@ -1,6 +1,19 @@
 # NaturalDex
 
+![Python](https://img.shields.io/badge/Python-3.14+-3776AB?style=for-the-badge&logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)
+![React](https://img.shields.io/badge/React_18-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
+![Vite](https://img.shields.io/badge/Vite_6-646CFF?style=for-the-badge&logo=vite&logoColor=white)
+![TailwindCSS](https://img.shields.io/badge/Tailwind_v4-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)
+![SQLite](https://img.shields.io/badge/SQLite-003B57?style=for-the-badge&logo=sqlite&logoColor=white)
+![Ollama](https://img.shields.io/badge/Ollama-Local_AI-black?style=for-the-badge&logo=ollama&logoColor=white)
+![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)
+
 A field journal and outdoor collection game that encourages nature exploration through species identification and collection. Built with a privacy-first, offline-capable architecture.
+
+## Demo
+
+[![NaturalDex Demo](https://img.youtube.com/vi/LeT_yH5muxI/maxresdefault.jpg)](https://youtu.be/LeT_yH5muxI)
 
 ## Overview
 
@@ -240,4 +253,4 @@ cd frontend && npm run lint  # if configured
 
 ## License
 
-[MIT](./LICENSE)
+[GPL-3.0](./LICENSE)
